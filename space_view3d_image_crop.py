@@ -42,12 +42,13 @@ class VIEW3D_OT_ImageCrop(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return True
+        ob = context.object
+        return ob and ob.type == 'MESH'
 
     @classmethod
     def _handle_add(cls):
         cls._handle_draw = bpy.types.SpaceView3D.draw_handler_add(
-            cls._draw_callback_px, tuple(), 'WINDOW', 'POST_PIXEL')
+            cls._draw_callback_px, tuple(), 'WINDOW', 'POST_VIEW')
 
     @classmethod
     def _handle_remove(cls):
@@ -79,21 +80,22 @@ class VIEW3D_OT_ImageCrop(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def cancel(self, context):
-        VIEW3D_OT_ImageCrop.reset()
+        VIEW3D_OT_ImageCrop._reset()
 
     @classmethod
-    def reset(cls):
+    def _reset(cls):
         cls._handle_remove()
         cls._handle_draw = None
         cls._vertices = [None, None]
 
     def invoke(self, context, event):
-        VIEW3D_OT_ImageCrop.reset()
-
         if context.area.type == 'VIEW_3D':
-            self.perspective = context.region_data.perspective_matrix
 
-            VIEW3D_OT_ImageCrop._handle_add()
+            # return error
+            err_message = VIEW3D_OT_ImageCrop._init(context)
+            if err_message:
+                self.report({'ERROR'}, err_message)
+                return {'CANCELLED'}
 
             if context.area:
                 context.area.tag_redraw()
@@ -104,6 +106,17 @@ class VIEW3D_OT_ImageCrop(bpy.types.Operator):
         else:
             self.report({'WARNING'}, "View3D not found, cannot run operator")
             return {'CANCELLED'}
+
+    @classmethod
+    def _init(cls, context):
+        cls._reset()
+        cls._handle_add()
+
+        # get vertices
+        ob = context.object
+        mesh = ob.data
+
+        return None
 
     @classmethod
     def _draw_callback_px(cls):
